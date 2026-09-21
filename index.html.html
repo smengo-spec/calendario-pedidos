@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Envíos - Depósito Sushi</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root[data-theme="dark"] {
+            --bg-color: #0a0a0c;
+            --surface: #121216;
+            --surface-hover: #1a1a20;
+            --border: #262630;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #e63946;
+            --primary-hover: #d62839;
+            --success: #22c55e;
+            --success-bg: rgba(34, 197, 94, 0.15);
+            --success-border: #15803d;
+            --input-bg: #18181f;
+        }
+
+        :root[data-theme="light"] {
+            --bg-color: #f8fafc;
+            --surface: #ffffff;
+            --surface-hover: #f1f5f9;
+            --border: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --primary: #e63946;
+            --primary-hover: #d62839;
+            --success: #16a34a;
+            --success-bg: #f0fdf4;
+            --success-border: #bbf7d0;
+            --input-bg: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 20px; min-height: 100vh; transition: background-color 0.3s, color 0.3s; }
+
+        header {
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .title-area { display: flex; align-items: center; gap: 12px; }
+        .title-area h1 { font-size: 1.25rem; font-weight: 700; }
+        .controls-area { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+        select, input, textarea {
+            padding: 9px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            outline: none;
+            background: var(--input-bg);
+            color: var(--text-main);
+        }
+
+        select:focus, input:focus, textarea:focus { border-color: var(--primary); }
+
+        .btn {
+            padding: 9px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--input-bg);
+            color: var(--text-main);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { background: var(--surface-hover); }
+        .btn-primary { background: var(--primary); color: white; border: none; }
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .theme-toggle {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: var(--input-bg);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .grid-days { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; align-items: start; }
+        .day-column { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; }
+        .day-header { padding: 12px 16px; background: var(--surface-hover); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .day-name { font-weight: 600; font-size: 0.95rem; }
+
+        .day-progress { font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 12px; background: var(--border); color: var(--text-muted); }
+        .day-progress.complete { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+
+        .store-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; flex-grow: 1; }
+        .store-card { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; transition: all 0.15s ease; }
+        .store-card:hover { border-color: var(--primary); transform: translateY(-1px); }
+
+        .store-info { display: flex; align-items: center; gap: 10px; }
+        .checkbox { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; }
+        .checkbox i { display: none; color: white; width: 12px; height: 12px; }
+        .store-name { font-size: 0.875rem; font-weight: 500; }
+        .badge { font-size: 0.7rem; font-weight: 600; padding: 2px 6px; border-radius: 4px; display: none; }
+
+        .store-card.dispatched { background: var(--success-bg); border-color: var(--success-border); }
+        .store-card.dispatched .checkbox { background: var(--success); border-color: var(--success); }
+        .store-card.dispatched .checkbox i { display: block; }
+        .store-card.dispatched .store-name { text-decoration: line-through; opacity: 0.8; }
+        .store-card.dispatched .badge { display: inline-block; background: var(--success); color: white; }
+
+        .day-notes {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+            background: var(--surface-hover);
+        }
+
+        .day-notes-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .day-notes textarea {
+            width: 100%;
+            height: 54px;
+            resize: none;
+            font-size: 0.8rem;
+            padding: 6px 10px;
+            border-radius: 6px;
+        }
+
+        .monthly-week-title { font-size: 1.1rem; font-weight: 700; color: var(--primary); margin: 20px 0 12px 0; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+        .empty-day { padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.85rem; font-style: italic; }
+
+        @media print {
+            body { padding: 0; background: white; color: black; }
+            header, .controls-area, .btn { display: none !important; }
+            .grid-days { grid-template-columns: repeat(5, 1fr) !important; gap: 8px; }
+            .day-column { border: 1px solid #ccc; background: white; }
+            .day-header { background: #f0f0f0; color: black; }
+            .store-card { background: white; border: 1px solid #ddd; color: black; page-break-inside: avoid; }
+            .day-notes textarea { border: 1px solid #ccc; background: white; color: black; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-top">
+            <div class="title-area">
+                <i data-lucide="truck" style="width: 28px; height: 28px; color: var(--primary);"></i>
+                <div>
+                    <h1>Control de Envíos - Depósito</h1>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">Programación de entregas 2026</p>
+                </div>
+            </div>
+
+            <div class="controls-area">
+                <button class="theme-toggle" onclick="toggleTheme()" title="Cambiar Tema Día/Noche">
+                    <i data-lucide="sun" id="themeIcon"></i>
+                </button>
+
+                <select id="monthSelect" onchange="filterByMonth()">
+                    <option value="ALL">Todo el Año (2026)</option>
+                    <option value="SEP" selected>Septiembre 2026</option>
+                    <option value="OCT">Octubre 2026</option>
+                    <option value="NOV">Noviembre 2026</option>
+                    <option value="DIC">Diciembre 2026</option>
+                </select>
+
+                <select id="weekSelect" onchange="renderCurrentView()">
+                    <!-- Opciones dinámicas -->
+                </select>
+
+                <select id="statusFilter" onchange="renderCurrentView()">
+                    <option value="all">Todos</option>
+                    <option value="pending">Pendientes</option>
+                    <option value="dispatched">Despachados</option>
+                </select>
+
+                <input type="text" id="searchInput" placeholder="Buscar local..." onkeyup="renderCurrentView()">
+
+                <button class="btn btn-primary" onclick="window.print()">
+                    <i data-lucide="printer" style="width: 16px; height: 16px;"></i> PDF
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="mainViewContainer"></div>
+
+    <script>
+        // Grupos y Días fijos
+        const grupoA = ["Alta Cba", "Carlos Paz", "General Paz", "Jardin", "Manantiales", "Nueva Cordoba", "Residencial", "Sabattini"];
+        const grupoB = ["Alberdi", "Calera", "Cerro", "Colon", "Monseñor", "Recta", "Villa Allende"];
+        const unicoLunes = ["Palermo", "Recoleta", "Rosario", "Villa Maria"];
+
+        function buildWeekSchedule(isRuta1) {
+            return [
+                { name: "Lunes", offset: 0, stores: [...grupoA, ...unicoLunes] },
+                { name: "Martes", offset: 1, stores: isRuta1 ? [...grupoB] : [...grupoB, "Mendoza", "Godoy Cruz", "San Rafael"] },
+                { name: "Miércoles", offset: 2, stores: isRuta1 ? ["Rio IV", "Tucuman", "Yerba Buena", "Salta"] : ["Rio IV", "La Rioja", "San Juan", "Santa Lucia"] },
+                { name: "Jueves", offset: 3, stores: isRuta1 ? [...grupoA, "Manantiales 2", "Rafaela", "Santa Fe"] : [...grupoA, "Manantiales 2"] },
+                { name: "Viernes", offset: 4, stores: isRuta1 ? [...grupoB, "Neuquen"] : [...grupoB] }
+            ];
+        }
+
+        const weeksConfig = [
+            { key: "31/08 - 04/09", startDate: "2026-08-31", month: "SEP", isRuta1: true },
+            { key: "07/09 - 11/09", startDate: "2026-09-07", month: "SEP", isRuta1: false },
+            { key: "14/09 - 18/09", startDate: "2026-09-14", month: "SEP", isRuta1: true },
+            { key: "21/09 - 25/09", startDate: "2026-09-21", month: "SEP", isRuta1: false },
+            { key: "28/09 - 02/10", startDate: "2026-09-28", month: "SEP", isRuta1: true },
+            { key: "05/10 - 09/10", startDate: "2026-10-05", month: "OCT", isRuta1: false },
+            { key: "12/10 - 16/10", startDate: "2026-10-12", month: "OCT", isRuta1: true },
+            { key: "19/10 - 23/10", startDate: "2026-10-19", month: "OCT", isRuta1: false },
+            { key: "26/10 - 30/10", startDate: "2026-10-26", month: "OCT", isRuta1: true },
+            { key: "02/11 - 06/11", startDate: "2026-11-02", month: "NOV", isRuta1: false },
+            { key: "09/11 - 13/11", startDate: "2026-11-09", month: "NOV", isRuta1: true },
+            { key: "16/11 - 20/11", startDate: "2026-11-16", month: "NOV", isRuta1: false },
+            { key: "23/11 - 27/11", startDate: "2026-11-23", month: "NOV", isRuta1: true },
+            { key: "30/11 - 04/12", startDate: "2026-11-30", month: "NOV", isRuta1: false },
+            { key: "07/12 - 11/12", startDate: "2026-12-07", month: "DIC", isRuta1: true },
+            { key: "14/12 - 18/12", startDate: "2026-12-14", month: "DIC", isRuta1: false },
+            { key: "21/12 - 25/12", startDate: "2026-12-21", month: "DIC", isRuta1: true },
+            { key: "28/12 - 31/12", startDate: "2026-12-28", month: "DIC", isRuta1: false }
+        ];
+
+        let dispatchedState = JSON.parse(localStorage.getItem('deposito_dispatched_v8')) || {};
+        let dayNotesState = JSON.parse(localStorage.getItem('deposito_notes_v2')) || {};
+
+        function init() {
+            filterByMonth();
+            lucide.createIcons();
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            
+            const icon = document.getElementById('themeIcon');
+            icon.setAttribute('data-lucide', next === 'dark' ? 'sun' : 'moon');
+            lucide.createIcons();
+        }
+
+        function filterByMonth() {
+            const selectedMonth = document.getElementById('monthSelect').value;
+            const weekSelect = document.getElementById('weekSelect');
+            weekSelect.innerHTML = '';
+
+            const optAll = document.createElement('option');
+            optAll.value = 'ALL_WEEKS';
+            optAll.textContent = 'Ver Mes Completo';
+            weekSelect.appendChild(optAll);
+
+            const filtered = selectedMonth === 'ALL' 
+                ? weeksConfig 
+                : weeksConfig.filter(w => w.month === selectedMonth);
+
+            filtered.forEach(w => {
+                const opt = document.createElement('option');
+                opt.value = w.key;
+                opt.textContent = `Semana: ${w.key}`;
+                weekSelect.appendChild(opt);
+            });
+
+            renderCurrentView();
+        }
+
+        function renderCurrentView() {
+            const container = document.getElementById('mainViewContainer');
+            container.innerHTML = '';
+
+            const selectedMonth = document.getElementById('monthSelect').value;
+            const selectedWeekKey = document.getElementById('weekSelect').value;
+
+            let weeksToRender = weeksConfig;
+
+            if (selectedMonth !== 'ALL') {
+                weeksToRender = weeksToRender.filter(w => w.month === selectedMonth);
+            }
+
+            if (selectedWeekKey !== 'ALL_WEEKS') {
+                weeksToRender = weeksToRender.filter(w => w.key === selectedWeekKey);
+            }
+
+            weeksToRender.forEach(weekObj => {
+                const title = document.createElement('div');
+                title.className = 'monthly-week-title';
+                title.textContent = `Semana: ${weekObj.key} (${weekObj.isRuta1 ? 'Ruta 1' : 'Ruta 2'})`;
+                container.appendChild(title);
+
+                const weekGrid = document.createElement('div');
+                weekGrid.className = 'grid-days';
+                weekGrid.style.marginBottom = '24px';
+
+                const weekSchedule = buildWeekSchedule(weekObj.isRuta1);
+                renderWeekDays(weekObj, weekSchedule, weekGrid);
+                container.appendChild(weekGrid);
+            });
+
+            lucide.createIcons();
+        }
+
+        function renderWeekDays(weekObj, weekDaysArray, targetElement) {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const searchFilter = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            weekDaysArray.forEach(dayInfo => {
+                const stores = dayInfo.stores;
+                const col = document.createElement('div');
+                col.className = 'day-column';
+
+                // Calcular fecha exacta del día
+                const baseDate = new Date(weekObj.startDate + 'T00:00:00');
+                baseDate.setDate(baseDate.getDate() + dayInfo.offset);
+                const dayNum = String(baseDate.getDate()).padStart(2, '0');
+                const monthNum = String(baseDate.getMonth() + 1).padStart(2, '0');
+                const dayLabelWithDate = `${dayInfo.name} ${dayNum}/${monthNum}`;
+
+                let dispatchedCount = 0;
+                let visibleCount = 0;
+
+                const storeListHTML = stores.map(store => {
+                    const key = `${weekObj.key}_${dayInfo.name}_${store}`;
+                    const isDispatched = !!dispatchedState[key];
+
+                    if (isDispatched) dispatchedCount++;
+
+                    if (statusFilter === 'pending' && isDispatched) return '';
+                    if (statusFilter === 'dispatched' && !isDispatched) return '';
+                    if (searchFilter && !store.toLowerCase().includes(searchFilter)) return '';
+
+                    visibleCount++;
+
+                    return `
+                        <div class="store-card ${isDispatched ? 'dispatched' : ''}" onclick="toggleDispatch('${key}')">
+                            <div class="store-info">
+                                <div class="checkbox"><i data-lucide="check"></i></div>
+                                <span class="store-name">${store}</span>
+                            </div>
+                            <span class="badge">DESPACHADO</span>
+                        </div>
+                    `;
+                }).join('');
+
+                const isComplete = stores.length > 0 && dispatchedCount === stores.length;
+                const noteKey = `${weekObj.key}_${dayInfo.name}`;
+                const savedNote = dayNotesState[noteKey] || '';
+
+                col.innerHTML = `
+                    <div class="day-header">
+                        <span class="day-name">${dayLabelWithDate}</span>
+                        <span class="day-progress ${isComplete ? 'complete' : ''}">
+                            ${dispatchedCount}/${stores.length}
+                        </span>
+                    </div>
+                    <div class="store-list">
+                        ${stores.length === 0 ? '<div class="empty-day">Sin envíos</div>' : storeListHTML}
+                        ${stores.length > 0 && visibleCount === 0 ? '<div class="empty-day">Sin coincidencias</div>' : ''}
+                    </div>
+                    <div class="day-notes">
+                        <div class="day-notes-header">
+                            <i data-lucide="notebook-pen" style="width: 14px; height: 14px;"></i>
+                            <span>Observaciones</span>
+                        </div>
+                        <textarea placeholder="Agregar nota para este día..." onchange="saveNote('${noteKey}', this.value)" onkeyup="saveNote('${noteKey}', this.value)">${savedNote}</textarea>
+                    </div>
+                `;
+
+                targetElement.appendChild(col);
+            });
+        }
+
+        function toggleDispatch(key) {
+            dispatchedState[key] = !dispatchedState[key];
+            localStorage.setItem('deposito_dispatched_v8', JSON.stringify(dispatchedState));
+            renderCurrentView();
+        }
+
+        function saveNote(noteKey, value) {
+            dayNotesState[noteKey] = value;
+            localStorage.setItem('deposito_notes_v2', JSON.stringify(dayNotesState));
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
