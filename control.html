@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Envíos - Depósito Sushi</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="datos.js"></script>
+    <style>
+        :root[data-theme="dark"] {
+            --bg-color: #0a0a0c;
+            --surface: #121216;
+            --surface-hover: #1a1a20;
+            --border: #262630;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #e63946;
+            --primary-hover: #d62839;
+            --success: #22c55e;
+            --success-bg: rgba(34, 197, 94, 0.15);
+            --success-border: #15803d;
+            --input-bg: #18181f;
+        }
+
+        :root[data-theme="light"] {
+            --bg-color: #f8fafc;
+            --surface: #ffffff;
+            --surface-hover: #f1f5f9;
+            --border: #e2e8f0;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --primary: #e63946;
+            --primary-hover: #d62839;
+            --success: #16a34a;
+            --success-bg: #f0fdf4;
+            --success-border: #bbf7d0;
+            --input-bg: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 20px; min-height: 100vh; transition: background-color 0.3s, color 0.3s; }
+
+        header {
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .title-area { display: flex; align-items: center; gap: 12px; }
+        .title-area h1 { font-size: 1.25rem; font-weight: 700; }
+        .controls-area { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+        select, input, textarea {
+            padding: 9px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            outline: none;
+            background: var(--input-bg);
+            color: var(--text-main);
+        }
+
+        select:focus, input:focus, textarea:focus { border-color: var(--primary); }
+
+        .btn {
+            padding: 9px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--input-bg);
+            color: var(--text-main);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { background: var(--surface-hover); }
+        .btn-primary { background: var(--primary); color: white; border: none; }
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .theme-toggle {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: var(--input-bg);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .grid-days { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; align-items: start; }
+        .day-column { background: var(--surface); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; }
+        .day-header { padding: 12px 16px; background: var(--surface-hover); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .day-name { font-weight: 600; font-size: 0.95rem; }
+
+        .day-progress { font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 12px; background: var(--border); color: var(--text-muted); }
+        .day-progress.complete { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+
+        .store-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; max-height: 60vh; overflow-y: auto; flex-grow: 1; }
+        .store-card { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; transition: all 0.15s ease; }
+        .store-card:hover { border-color: var(--primary); transform: translateY(-1px); }
+
+        .store-info { display: flex; align-items: center; gap: 10px; }
+        .checkbox { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; }
+        .checkbox i { display: none; color: white; width: 12px; height: 12px; }
+        .store-name { font-size: 0.875rem; font-weight: 500; }
+        .badge { font-size: 0.7rem; font-weight: 600; padding: 2px 6px; border-radius: 4px; display: none; }
+
+        .store-card.dispatched { background: var(--success-bg); border-color: var(--success-border); }
+        .store-card.dispatched .checkbox { background: var(--success); border-color: var(--success); }
+        .store-card.dispatched .checkbox i { display: block; }
+        .store-card.dispatched .store-name { text-decoration: line-through; opacity: 0.8; }
+        .store-card.dispatched .badge { display: inline-block; background: var(--success); color: white; }
+
+        .day-notes {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+            background: var(--surface-hover);
+        }
+
+        .day-notes-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .day-notes textarea {
+            width: 100%;
+            height: 54px;
+            resize: none;
+            font-size: 0.8rem;
+            padding: 6px 10px;
+            border-radius: 6px;
+        }
+
+        .monthly-week-title { font-size: 1.1rem; font-weight: 700; color: var(--primary); margin: 20px 0 12px 0; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+        .empty-day { padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.85rem; font-style: italic; }
+
+        .conn { padding: 10px 14px; border-radius: 8px; margin-bottom: 16px; background: #fef3c7; color: #78350f; border: 1px solid #f59e0b; font-size: 0.85rem; }
+        .conn[hidden] { display: none; }
+        .estado { font-size: 0.75rem; color: var(--text-muted); }
+
+        @media print {
+            .conn, .estado { display: none !important; }
+            body { padding: 0; background: white; color: black; }
+            header, .controls-area, .btn { display: none !important; }
+            .grid-days { grid-template-columns: repeat(5, 1fr) !important; gap: 8px; }
+            .day-column { border: 1px solid #ccc; background: white; }
+            .day-header { background: #f0f0f0; color: black; }
+            .store-card { background: white; border: 1px solid #ddd; color: black; page-break-inside: avoid; }
+            .day-notes textarea { border: 1px solid #ccc; background: white; color: black; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-top">
+            <div class="title-area">
+                <i data-lucide="truck" style="width: 28px; height: 28px; color: var(--primary);"></i>
+                <div>
+                    <h1>Control de Envíos - Depósito</h1>
+                    <p id="subtitulo" style="font-size: 0.8rem; color: var(--text-muted);">Programación de entregas</p>
+                </div>
+            </div>
+
+            <div class="controls-area">
+                <button class="theme-toggle" onclick="toggleTheme()" title="Cambiar Tema Día/Noche">
+                    <i data-lucide="sun" id="themeIcon"></i>
+                </button>
+
+                <select id="monthSelect" onchange="filterByMonth()">
+                    <!-- Opciones dinámicas -->
+                </select>
+
+                <select id="weekSelect" onchange="renderCurrentView()">
+                    <!-- Opciones dinámicas -->
+                </select>
+
+                <select id="statusFilter" onchange="renderCurrentView()">
+                    <option value="all">Todos</option>
+                    <option value="pending">Pendientes</option>
+                    <option value="dispatched">Despachados</option>
+                </select>
+
+                <input type="text" id="searchInput" placeholder="Buscar local..." onkeyup="renderCurrentView()">
+
+                <span id="estado" class="estado"></span>
+                <button class="btn" onclick="actualizarDatos(true)" title="Volver a leer la hoja">
+                    <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i> Actualizar
+                </button>
+
+                <button class="btn btn-primary" onclick="window.print()">
+                    <i data-lucide="printer" style="width: 16px; height: 16px;"></i> PDF
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="conn" class="conn" hidden></div>
+
+    <div id="mainViewContainer"><div class="empty-day">Cargando calendario…</div></div>
+
+    <script>
+        const D = CalendarioDatos;
+        const NOMBRES_DIA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+        const pad = n => String(n).padStart(2, '0');
+
+        // Semanas leídas desde la hoja de Drive (ya no están escritas a mano en el código)
+        let weeksConfig = [];
+
+        function leerLocal(clave) {
+            try { return JSON.parse(localStorage.getItem(clave)) || {}; } catch (e) { return {}; }
+        }
+        function guardarLocal(clave, valor) {
+            try { localStorage.setItem(clave, JSON.stringify(valor)); } catch (e) {}
+        }
+        // Mismas claves de siempre: lo que ya tenías tildado y anotado se conserva en este equipo
+        let dispatchedState = leerLocal('deposito_dispatched_v8');
+        let dayNotesState = leerLocal('deposito_notes_v2');
+
+        function iconos() { if (window.lucide) lucide.createIcons(); }
+
+        function construirSemanas(modelo) {
+            return modelo.semanas.map((s, i) => {
+                const ini = new Date(s.inicio), fin = new Date(s.inicio + 4 * D.DAY);
+                const key = pad(ini.getUTCDate()) + '/' + pad(ini.getUTCMonth() + 1) + ' - ' + pad(fin.getUTCDate()) + '/' + pad(fin.getUTCMonth() + 1);
+                let ruta = '';
+                modelo.grupos.forEach(g => { if (g.clave.indexOf('ruta:') === 0 && g.clave.charAt(5 + i) === '1') ruta = g.titulo; });
+                const days = [1, 2, 3, 4, 5].map(d => {
+                    const stores = [];
+                    modelo.grupos.forEach(g => g.franqs.forEach(f => { if (f.sem[i] && f.sem[i].indexOf(d) >= 0) stores.push(f.nombre); }));
+                    return { name: NOMBRES_DIA[d - 1], offset: d - 1, stores: stores };
+                });
+                const cuenta = {};
+                for (let d = 0; d < 5; d++) {
+                    const f = new Date(s.inicio + d * D.DAY);
+                    const k = f.getUTCFullYear() + '-' + pad(f.getUTCMonth() + 1);
+                    cuenta[k] = (cuenta[k] || 0) + 1;
+                }
+                const mes = Object.keys(cuenta).sort((a, b) => cuenta[b] - cuenta[a] || (a < b ? -1 : 1))[0];
+                return { key: key, startMs: s.inicio, month: mes, ruta: ruta, days: days };
+            });
+        }
+
+        function etiquetaMes(clave) {
+            const p = clave.split('-');
+            return D.cap(D.MESES[+p[1] - 1]) + ' ' + p[0];
+        }
+
+        function poblarMeses() {
+            const sel = document.getElementById('monthSelect');
+            const anterior = sel.value;
+            const meses = [];
+            weeksConfig.forEach(w => { if (meses.indexOf(w.month) < 0) meses.push(w.month); });
+            sel.innerHTML = '<option value="ALL">Todo el período</option>' +
+                meses.map(m => '<option value="' + m + '">' + etiquetaMes(m) + '</option>').join('');
+            const hoy = new Date(D.hoyUTC());
+            const actual = hoy.getUTCFullYear() + '-' + pad(hoy.getUTCMonth() + 1);
+            if (anterior === 'ALL' || meses.indexOf(anterior) >= 0) sel.value = anterior;
+            else sel.value = meses.indexOf(actual) >= 0 ? actual : (meses[0] || 'ALL');
+        }
+
+        function filterByMonth() {
+            const selectedMonth = document.getElementById('monthSelect').value;
+            const weekSelect = document.getElementById('weekSelect');
+            const semanaAnterior = weekSelect.value;
+            weekSelect.innerHTML = '';
+
+            const optAll = document.createElement('option');
+            optAll.value = 'ALL_WEEKS';
+            optAll.textContent = 'Ver Mes Completo';
+            weekSelect.appendChild(optAll);
+
+            const filtered = selectedMonth === 'ALL'
+                ? weeksConfig
+                : weeksConfig.filter(w => w.month === selectedMonth);
+
+            filtered.forEach(w => {
+                const opt = document.createElement('option');
+                opt.value = w.key;
+                opt.textContent = `Semana: ${w.key}`;
+                weekSelect.appendChild(opt);
+            });
+            if (Array.from(weekSelect.options).some(o => o.value === semanaAnterior)) weekSelect.value = semanaAnterior;
+
+            renderCurrentView();
+        }
+
+        function renderCurrentView() {
+            const container = document.getElementById('mainViewContainer');
+            container.innerHTML = '';
+
+            const selectedMonth = document.getElementById('monthSelect').value;
+            const selectedWeekKey = document.getElementById('weekSelect').value;
+
+            let weeksToRender = weeksConfig;
+
+            if (selectedMonth !== 'ALL') {
+                weeksToRender = weeksToRender.filter(w => w.month === selectedMonth);
+            }
+
+            if (selectedWeekKey !== 'ALL_WEEKS') {
+                weeksToRender = weeksToRender.filter(w => w.key === selectedWeekKey);
+            }
+
+            weeksToRender.forEach(weekObj => {
+                const title = document.createElement('div');
+                title.className = 'monthly-week-title';
+                title.textContent = `Semana: ${weekObj.key}${weekObj.ruta ? ' (' + weekObj.ruta + ')' : ''}`;
+                container.appendChild(title);
+
+                const weekGrid = document.createElement('div');
+                weekGrid.className = 'grid-days';
+                weekGrid.style.marginBottom = '24px';
+
+                renderWeekDays(weekObj, weekObj.days, weekGrid);
+                container.appendChild(weekGrid);
+            });
+
+            iconos();
+        }
+
+        function renderWeekDays(weekObj, weekDaysArray, targetElement) {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const searchFilter = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            weekDaysArray.forEach(dayInfo => {
+                const stores = dayInfo.stores;
+                const col = document.createElement('div');
+                col.className = 'day-column';
+
+                // Fecha exacta del día
+                const f = new Date(weekObj.startMs + dayInfo.offset * D.DAY);
+                const dayLabelWithDate = `${dayInfo.name} ${pad(f.getUTCDate())}/${pad(f.getUTCMonth() + 1)}`;
+
+                let dispatchedCount = 0;
+                let visibleCount = 0;
+
+                const storeListHTML = stores.map(store => {
+                    const key = `${weekObj.key}_${dayInfo.name}_${store}`;
+                    const isDispatched = !!dispatchedState[key];
+
+                    if (isDispatched) dispatchedCount++;
+
+                    if (statusFilter === 'pending' && isDispatched) return '';
+                    if (statusFilter === 'dispatched' && !isDispatched) return '';
+                    if (searchFilter && !store.toLowerCase().includes(searchFilter)) return '';
+
+                    visibleCount++;
+
+                    return `
+                        <div class="store-card ${isDispatched ? 'dispatched' : ''}" data-key="${D.esc(key)}">
+                            <div class="store-info">
+                                <div class="checkbox"><i data-lucide="check"></i></div>
+                                <span class="store-name">${D.esc(store)}</span>
+                            </div>
+                            <span class="badge">DESPACHADO</span>
+                        </div>
+                    `;
+                }).join('');
+
+                const isComplete = stores.length > 0 && dispatchedCount === stores.length;
+                const noteKey = `${weekObj.key}_${dayInfo.name}`;
+                const savedNote = dayNotesState[noteKey] || '';
+
+                col.innerHTML = `
+                    <div class="day-header">
+                        <span class="day-name">${dayLabelWithDate}</span>
+                        <span class="day-progress ${isComplete ? 'complete' : ''}">
+                            ${dispatchedCount}/${stores.length}
+                        </span>
+                    </div>
+                    <div class="store-list">
+                        ${stores.length === 0 ? '<div class="empty-day">Sin envíos</div>' : storeListHTML}
+                        ${stores.length > 0 && visibleCount === 0 ? '<div class="empty-day">Sin coincidencias</div>' : ''}
+                    </div>
+                    <div class="day-notes">
+                        <div class="day-notes-header">
+                            <i data-lucide="notebook-pen" style="width: 14px; height: 14px;"></i>
+                            <span>Observaciones</span>
+                        </div>
+                        <textarea placeholder="Agregar nota para este día..." data-note="${D.esc(noteKey)}">${D.esc(savedNote)}</textarea>
+                    </div>
+                `;
+
+                targetElement.appendChild(col);
+            });
+        }
+
+        function toggleDispatch(key) {
+            dispatchedState[key] = !dispatchedState[key];
+            guardarLocal('deposito_dispatched_v8', dispatchedState);
+            renderCurrentView();
+        }
+
+        function saveNote(noteKey, value) {
+            dayNotesState[noteKey] = value;
+            guardarLocal('deposito_notes_v2', dayNotesState);
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+
+            const icon = document.getElementById('themeIcon');
+            icon.setAttribute('data-lucide', next === 'dark' ? 'sun' : 'moon');
+            iconos();
+        }
+
+        /* ---------- Conexión con la hoja de Drive ---------- */
+        let ultimo = { texto: null, fuente: null };
+
+        async function actualizarDatos(manual) {
+            const estado = document.getElementById('estado');
+            const enEdicion = document.activeElement && document.activeElement.tagName === 'TEXTAREA';
+            if (!manual && enEdicion) return; // no interrumpir mientras se escribe una observación
+
+            estado.textContent = 'Actualizando…';
+            const res = await D.cargar();
+
+            if (manual || res.texto !== ultimo.texto || res.fuente !== ultimo.fuente) {
+                ultimo = { texto: res.texto, fuente: res.fuente };
+                const leido = D.leer(res.texto);
+                if (!leido.modelo) {
+                    document.getElementById('mainViewContainer').innerHTML =
+                        '<div class="empty-day">No encontré semanas en la hoja. Revisá que cada bloque tenga una fila con «SEMANA» y las fechas de inicio y fin.</div>';
+                } else {
+                    const y = window.scrollY;
+                    weeksConfig = construirSemanas(leido.modelo);
+                    document.getElementById('subtitulo').textContent =
+                        'Programación de entregas ' + new Date(leido.modelo.semanas[0].inicio).getUTCFullYear();
+                    poblarMeses();
+                    filterByMonth();
+                    window.scrollTo(0, y);
+                }
+            }
+
+            const conn = document.getElementById('conn');
+            if (res.fuente === 'hoja') {
+                conn.hidden = true;
+                estado.textContent = 'Al día · ' + D.fmtFechaHora(new Date());
+            } else {
+                conn.textContent = (res.fuente === 'guardada'
+                    ? 'No se pudo actualizar desde la hoja. Se muestra la última versión guardada en este equipo.'
+                    : 'No se pudo conectar con la hoja. Se muestra una copia incluida en la página que puede estar desactualizada.')
+                    + (res.error ? ' (Detalle: ' + res.error.message + ')' : '');
+                conn.hidden = false;
+                estado.textContent = 'Sin conexión con la hoja';
+            }
+        }
+
+        function init() {
+            const cont = document.getElementById('mainViewContainer');
+            cont.addEventListener('click', e => {
+                const card = e.target.closest('.store-card');
+                if (card) toggleDispatch(card.getAttribute('data-key'));
+            });
+            cont.addEventListener('input', e => {
+                if (e.target.matches('textarea[data-note]')) saveNote(e.target.getAttribute('data-note'), e.target.value);
+            });
+            document.addEventListener('visibilitychange', () => { if (!document.hidden) actualizarDatos(false); });
+            actualizarDatos(true);
+            setInterval(() => actualizarDatos(false), Math.max(1, D.CONFIG.refrescarCadaMinutos) * 60000);
+            iconos();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
