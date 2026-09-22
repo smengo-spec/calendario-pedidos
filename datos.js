@@ -11,7 +11,7 @@
 const CONFIG = {
   // 1) URL de tu script de Google (la "aplicación web", termina en /exec).
   //    Es la forma que funciona desde cualquier página. Pegala entre las comillas.
-  urlScript: "",
+  urlScript: "https://script.google.com/macros/s/AKfycbwyay_xSIQs6Ztql3bMw7tJUL0xWiekSENhTANjHtQ4DOks1zhS_3zHZzd2R8FdzG_M/exec",
 
   // 2) Tu hoja publicada como CSV. Se usa solo si no hay script o si el script falla
   //    (algunos navegadores bloquean este link cuando se lee desde otra página).
