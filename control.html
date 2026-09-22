@@ -119,13 +119,13 @@
 
         .store-info { display: flex; align-items: center; gap: 10px; }
         .checkbox { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; }
-        .checkbox i { display: none; color: white; width: 12px; height: 12px; }
+        .checkbox i, .checkbox svg { display: none; color: white; width: 12px; height: 12px; }
         .store-name { font-size: 0.875rem; font-weight: 500; }
         .badge { font-size: 0.7rem; font-weight: 600; padding: 2px 6px; border-radius: 4px; display: none; }
 
         .store-card.dispatched { background: var(--success-bg); border-color: var(--success-border); }
         .store-card.dispatched .checkbox { background: var(--success); border-color: var(--success); }
-        .store-card.dispatched .checkbox i { display: block; }
+        .store-card.dispatched .checkbox i, .store-card.dispatched .checkbox svg { display: block; }
         .store-card.dispatched .store-name { text-decoration: line-through; opacity: 0.8; }
         .store-card.dispatched .badge { display: inline-block; background: var(--success); color: white; }
 
@@ -143,6 +143,36 @@
             font-weight: 600;
             color: var(--text-muted);
             margin-bottom: 6px;
+        }
+
+        .save-status { margin-left: auto; font-weight: 500; opacity: 0.85; }
+        .save-status.err { color: var(--primary); }
+        @media print { .save-status { display: none; } }
+
+        .avisos-generales {
+            margin: 0 0 16px;
+            display: grid;
+            gap: 8px;
+        }
+        .aviso-general {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #f59e0b;
+            background: rgba(245, 158, 11, 0.14);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        @media print { .avisos-generales { display: none; } }
+
+        .day-aviso {
+            margin: 12px 12px 0;
+            padding: 8px 10px;
+            border-left: 3px solid #f59e0b;
+            background: rgba(245, 158, 11, 0.14);
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            line-height: 1.35;
         }
 
         .day-notes textarea {
@@ -219,6 +249,7 @@
     </header>
 
     <div id="conn" class="conn" hidden></div>
+    <div id="avisosGenerales" class="avisos-generales"></div>
 
     <div id="mainViewContainer"><div class="empty-day">Cargando calendario…</div></div>
 
@@ -242,7 +273,8 @@
 
         function iconos() { if (window.lucide) lucide.createIcons(); }
 
-        function construirSemanas(modelo) {
+        function construirSemanas(modelo, hoja) {
+            const avisosDia = (hoja && hoja.avisosDia) || {};
             return modelo.semanas.map((s, i) => {
                 const ini = new Date(s.inicio), fin = new Date(s.inicio + 4 * D.DAY);
                 const key = pad(ini.getUTCDate()) + '/' + pad(ini.getUTCMonth() + 1) + ' - ' + pad(fin.getUTCDate()) + '/' + pad(fin.getUTCMonth() + 1);
@@ -251,7 +283,8 @@
                 const days = [1, 2, 3, 4, 5].map(d => {
                     const stores = [];
                     modelo.grupos.forEach(g => g.franqs.forEach(f => { if (f.sem[i] && f.sem[i].indexOf(d) >= 0) stores.push(f.nombre); }));
-                    return { name: NOMBRES_DIA[d - 1], offset: d - 1, stores: stores };
+                    const avisos = avisosDia[s.inicio + (d - 1) * D.DAY] || [];
+                    return { name: NOMBRES_DIA[d - 1], offset: d - 1, stores: stores, avisos: avisos };
                 });
                 const cuenta = {};
                 for (let d = 0; d < 5; d++) {
@@ -385,6 +418,10 @@
                 const noteKey = `${weekObj.key}_${dayInfo.name}`;
                 const savedNote = dayNotesState[noteKey] || '';
 
+                const avisoHTML = (dayInfo.avisos && dayInfo.avisos.length)
+                    ? `<div class="day-aviso">📌 ${dayInfo.avisos.map(D.esc).join('<br>📌 ')}</div>`
+                    : '';
+
                 col.innerHTML = `
                     <div class="day-header">
                         <span class="day-name">${dayLabelWithDate}</span>
@@ -392,6 +429,7 @@
                             ${dispatchedCount}/${stores.length}
                         </span>
                     </div>
+                    ${avisoHTML}
                     <div class="store-list">
                         ${stores.length === 0 ? '<div class="empty-day">Sin envíos</div>' : storeListHTML}
                         ${stores.length > 0 && visibleCount === 0 ? '<div class="empty-day">Sin coincidencias</div>' : ''}
@@ -400,6 +438,7 @@
                         <div class="day-notes-header">
                             <i data-lucide="notebook-pen" style="width: 14px; height: 14px;"></i>
                             <span>Observaciones</span>
+                            <span class="save-status" aria-live="polite"></span>
                         </div>
                         <textarea placeholder="Agregar nota para este día..." data-note="${D.esc(noteKey)}">${D.esc(savedNote)}</textarea>
                     </div>
@@ -415,9 +454,42 @@
             renderCurrentView();
         }
 
-        function saveNote(noteKey, value) {
+        const temporizadoresNota = {};
+
+        function saveNote(noteKey, value, status) {
             dayNotesState[noteKey] = value;
             guardarLocal('deposito_notes_v2', dayNotesState);
+            if (status) status.textContent = 'Escribiendo…';
+            clearTimeout(temporizadoresNota[noteKey]);
+            temporizadoresNota[noteKey] = setTimeout(() => guardarNotaEnHoja(noteKey, value, status), 900);
+        }
+
+        async function guardarNotaEnHoja(noteKey, value, status) {
+            try {
+                if (status) { status.classList.remove('err'); status.textContent = 'Guardando…'; }
+                await D.guardarNota(noteKey, value);
+                if (status && dayNotesState[noteKey] === value) {
+                    status.textContent = 'Guardado ✓';
+                    setTimeout(() => { if (status.textContent === 'Guardado ✓') status.textContent = ''; }, 2500);
+                }
+            } catch (e) {
+                if (status) { status.classList.add('err'); status.textContent = 'No se guardó: ' + e.message; }
+            }
+        }
+
+        // Trae las observaciones ya guardadas por otros; no pisa la que estás escribiendo ahora mismo
+        async function sincronizarNotas() {
+            const remotas = await D.obtenerNotas();
+            const activo = document.activeElement;
+            const claveActiva = activo && activo.matches && activo.matches('textarea[data-note]') ? activo.getAttribute('data-note') : null;
+            let cambio = false;
+            Object.keys(remotas).forEach(k => {
+                if (k === claveActiva) return;
+                const texto = remotas[k].texto || '';
+                if (dayNotesState[k] !== texto) { dayNotesState[k] = texto; cambio = true; }
+            });
+            if (cambio) guardarLocal('deposito_notes_v2', dayNotesState);
+            return cambio;
         }
 
         function toggleTheme() {
@@ -440,7 +512,7 @@
             if (!manual && enEdicion) return; // no interrumpir mientras se escribe una observación
 
             estado.textContent = 'Actualizando…';
-            const res = await D.cargar();
+            const [res] = await Promise.all([D.cargar(), sincronizarNotas()]);
 
             if (manual || res.texto !== ultimo.texto || res.fuente !== ultimo.fuente) {
                 ultimo = { texto: res.texto, fuente: res.fuente };
@@ -450,7 +522,9 @@
                         '<div class="empty-day">No encontré semanas en la hoja. Revisá que cada bloque tenga una fila con «SEMANA» y las fechas de inicio y fin.</div>';
                 } else {
                     const y = window.scrollY;
-                    weeksConfig = construirSemanas(leido.modelo);
+                    weeksConfig = construirSemanas(leido.modelo, leido.hoja);
+                    document.getElementById('avisosGenerales').innerHTML = leido.hoja.avisos
+                        .map(a => '<div class="aviso-general">📌 ' + D.esc(a) + '</div>').join('');
                     document.getElementById('subtitulo').textContent =
                         'Programación de entregas ' + new Date(leido.modelo.semanas[0].inicio).getUTCFullYear();
                     poblarMeses();
@@ -480,7 +554,10 @@
                 if (card) toggleDispatch(card.getAttribute('data-key'));
             });
             cont.addEventListener('input', e => {
-                if (e.target.matches('textarea[data-note]')) saveNote(e.target.getAttribute('data-note'), e.target.value);
+                if (e.target.matches('textarea[data-note]')) {
+                    const status = e.target.closest('.day-notes').querySelector('.save-status');
+                    saveNote(e.target.getAttribute('data-note'), e.target.value, status);
+                }
             });
             document.addEventListener('visibilitychange', () => { if (!document.hidden) actualizarDatos(false); });
             actualizarDatos(true);
