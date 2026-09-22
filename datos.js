@@ -175,8 +175,9 @@ function lunesDe(ms) {
 }
 
 const RE_AVISO = /^avisos?\s*:\s*(.+)$/i;
+const RE_AVISO_DIA = /^avisos?\s+(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?\s*:\s*(.+)$/i;
 const RE_HORARIO = /^(?:horario(?:\s+l[ií]mite)?|hora\s+l[ií]mite|cierre(?:\s+de\s+pedidos?)?)\s*:\s*(.+)$/i;
-const esParametro = t => RE_AVISO.test((t || '').trim()) || RE_HORARIO.test((t || '').trim());
+const esParametro = t => { const x = (t || '').trim(); return RE_AVISO_DIA.test(x) || RE_AVISO.test(x) || RE_HORARIO.test(x); };
 
 function leerHoja(grid) {
   const avisos = []; let horario = '';
@@ -228,7 +229,34 @@ function leerHoja(grid) {
   const semanas = Array.from(porInicio.values())
     .filter(s => [1, 2, 3, 4, 5].some(d => s.dias[d].length))
     .sort((a, b) => a.inicio - b.inicio);
-  return {semanas: semanas, avisos: avisos, horario: horario};
+
+  // Avisos atados a un día puntual (ej. "AVISO 4/9: Hay conteo de stock"), distintos de los avisos generales de arriba
+  const avisosDia = {};
+  const anios = Array.from(new Set(semanas.map(s => new Date(s.inicio).getUTCFullYear())));
+  grid.forEach(fila => fila.forEach(c => {
+    const t = (c || '').trim();
+    const m = t.match(RE_AVISO_DIA);
+    if (!m) return;
+    const d = +m[1], mo = +m[2];
+    const texto = m[4].trim();
+    if (mo < 1 || mo > 12 || d < 1 || d > 31 || !texto) return;
+    let ms = null;
+    if (m[3]) {
+      let y = +m[3]; if (y < 100) y += 2000;
+      ms = Date.UTC(y, mo - 1, d);
+    } else {
+      for (let i = 0; i < anios.length; i++) {
+        const cand = Date.UTC(anios[i], mo - 1, d);
+        if (semanas.some(s => cand >= s.inicio && cand <= s.inicio + 4 * DAY)) { ms = cand; break; }
+      }
+      if (ms === null && anios.length) ms = Date.UTC(anios[0], mo - 1, d);
+    }
+    if (ms === null) return;
+    if (!avisosDia[ms]) avisosDia[ms] = [];
+    avisosDia[ms].push(texto);
+  }));
+
+  return {semanas: semanas, avisos: avisos, horario: horario, avisosDia: avisosDia};
 }
 
 /* ---------------- Fechas ---------------- */
@@ -380,6 +408,22 @@ function jsonp(url, ms) {
   });
 }
 
+async function obtenerNotas() {
+  if (!CONFIG.urlScript) return {};
+  try {
+    const datos = await jsonp(CONFIG.urlScript + '?accion=notas');
+    return datos && typeof datos === 'object' ? datos : {};
+  } catch (e) { return {}; }
+}
+
+async function guardarNota(clave, texto) {
+  if (!CONFIG.urlScript) throw new Error('no hay conexión configurada con la hoja');
+  const url = CONFIG.urlScript + '?accion=guardar_nota&clave=' + encodeURIComponent(clave) + '&texto=' + encodeURIComponent(texto);
+  const res = await jsonp(url, 15000);
+  if (!res || res.ok !== true) throw new Error('la hoja no confirmó el guardado');
+  return res;
+}
+
 async function obtenerTexto() {
   const errores = [];
   if (CONFIG.urlScript) {
@@ -419,7 +463,7 @@ async function cargar() {
 }
 
 global.CalendarioDatos = {
-  CONFIG: CONFIG, cargar: cargar, leer: leer,
+  CONFIG: CONFIG, cargar: cargar, leer: leer, obtenerNotas: obtenerNotas, guardarNota: guardarNota,
   DAY: DAY, DIA_ABREV: DIA_ABREV, DIA_LARGO: DIA_LARGO, MESES: MESES,
   norm: norm, esc: esc, cap: cap, unir: unir, p2: p2,
   fmtCorta: fmtCorta, rangoSemana: rangoSemana, hoyUTC: hoyUTC, esActual: esActual, esPasada: esPasada, fmtFechaHora: fmtFechaHora
