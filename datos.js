@@ -424,6 +424,22 @@ async function guardarNota(clave, texto) {
   return res;
 }
 
+async function obtenerDespachos() {
+  if (!CONFIG.urlScript) return {};
+  try {
+    const datos = await jsonp(CONFIG.urlScript + '?accion=despachos');
+    return datos && typeof datos === 'object' ? datos : {};
+  } catch (e) { return {}; }
+}
+
+async function guardarDespacho(clave, valor) {
+  if (!CONFIG.urlScript) throw new Error('no hay conexión configurada con la hoja');
+  const url = CONFIG.urlScript + '?accion=guardar_despacho&clave=' + encodeURIComponent(clave) + '&valor=' + (valor ? '1' : '0');
+  const res = await jsonp(url, 15000);
+  if (!res || res.ok !== true) throw new Error('la hoja no confirmó el guardado');
+  return res;
+}
+
 async function obtenerTexto() {
   const errores = [];
   if (CONFIG.urlScript) {
@@ -463,7 +479,7 @@ async function cargar() {
 }
 
 global.CalendarioDatos = {
-  CONFIG: CONFIG, cargar: cargar, leer: leer, obtenerNotas: obtenerNotas, guardarNota: guardarNota,
+  CONFIG: CONFIG, cargar: cargar, leer: leer, obtenerNotas: obtenerNotas, guardarNota: guardarNota, obtenerDespachos: obtenerDespachos, guardarDespacho: guardarDespacho,
   DAY: DAY, DIA_ABREV: DIA_ABREV, DIA_LARGO: DIA_LARGO, MESES: MESES,
   norm: norm, esc: esc, cap: cap, unir: unir, p2: p2,
   fmtCorta: fmtCorta, rangoSemana: rangoSemana, hoyUTC: hoyUTC, esActual: esActual, esPasada: esPasada, fmtFechaHora: fmtFechaHora
